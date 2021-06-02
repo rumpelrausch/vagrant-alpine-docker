@@ -2,7 +2,7 @@
 #############################################
 #############################################
 
-required_plugins = %w( vagrant-env vagrant-alpine vagrant-vbguest )
+required_plugins = %w( vagrant-env vagrant-alpine )
 didInstall = false
 required_plugins.each do |plugin|
   next if Vagrant.has_plugin? plugin
@@ -28,7 +28,6 @@ Vagrant.configure(2) do |config|
   mountdir = ENV['VM_GUEST_MOUNTDIR'] || '/mnt'
 
   config.vm.hostname = name
-  config.vbguest.auto_update = false
   config.vm.box = 'generic/alpine312'
   config.ssh.insert_key = false
 
