@@ -67,3 +67,8 @@ curl --silent --show-error --no-progress-meter -L --fail https://github.com/dock
 chmod +rx /usr/bin/docker-compose
 rc-update add docker boot
 service docker start
+while true
+do
+  docker info >/dev/null 2>&1 && break
+done
+docker swarm init
