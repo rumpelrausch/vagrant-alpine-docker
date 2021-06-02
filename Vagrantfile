@@ -1,12 +1,4 @@
 #############################################
-# Set these variables to match your project #
-#############################################
-
-$DOCKER_VM_NAME = 'localdocker'
-$DOCKER_VM_MEMORY = 2048
-$DOCKER_VM_CPU = 2
-
-#############################################
 #############################################
 #############################################
 
@@ -18,32 +10,30 @@ Vagrant.configure(2) do |config|
   config.env.enable
   config.vbguest.auto_update = false
   config.vm.box = 'generic/alpine312'
-  config.vm.network 'forwarded_port', guest: 80, host: 8980
-  config.vm.network 'forwarded_port', guest: 81, host: 8981
-  config.vm.network 'forwarded_port', guest: 82, host: 8982
-  config.vm.network 'forwarded_port', guest: 83, host: 8983
-  config.vm.network 'forwarded_port', guest: 84, host: 8984
-  config.vm.network 'forwarded_port', guest: 85, host: 8985
 
-  if ENV['DOCKER_VM_PORTS']
-    ports = ENV['DOCKER_VM_PORTS']
-    ports.split(",").each do |port|
-      config.vm.network 'forwarded_port', guest: port, host: port
+  if ENV['VM_PORTS']
+    ports = ENV['VM_PORTS']
+    ports.split(",").each do |portConfig|
+      portConfig = portConfig.split(':')
+      config.vm.network 'forwarded_port', guest: portConfig.first, host: portConfig.last
     end
   end
 
-  config.vm.synced_folder './src', '/src', disabled: false
-
-  if ENV['DOCKER_VM_MOUNTS']
-    mounts = ENV['DOCKER_VM_MOUNTS']
+  if ENV['VM_MOUNTS']
+    mounts = ENV['VM_MOUNTS']
     mounts.split(",").each do |mount|
-      config.vm.synced_folder mount, File.basename(mount)
+      config.vm.synced_folder mount, '/mnt/host/' + File.basename(mount), nfs:true
     end
   end
 
-  memory = ENV['DOCKER_VM_MEMORY'] || $DOCKER_VM_MEMORY
-  cpus = ENV['DOCKER_VM_CPU'] || $DOCKER_VM_CPU
-  name = ENV['DOCKER_VM_NAME'] || $DOCKER_VM_NAME
+  portString = +ports
+  portString.gsub!(/,/, "  ")
+  portString.gsub!(/:/, "<-")
+
+  memory = ENV['VM_MEMORY'] || 1024
+  name = ENV['VM_NAME'] || 'vagrant_alpine'
+  cpus = ENV['VM_CPUS'] || 2
+
 
   config.vm.provider 'virtualbox' do |vb|
     # Display the VirtualBox GUI when booting the machine
@@ -52,18 +42,41 @@ Vagrant.configure(2) do |config|
     vb.memory = memory
     vb.name = name
     vb.cpus = cpus
-  end
-  puts ' ---------------------------------------------------------------------'\
-    '-----------------------------------'
-  puts '               memory                             name                '\
-    '             CPUS               '
-  puts ' ---------------------------------------------------------------------'\
-    '-----------------------------------'
-  puts "                 #{memory}                         #{name}           "\
-    "               #{cpus}           "
-  puts ' --------------------------------------------------------------------'\
-    '------------------------------------'
 
-  config.vm.provision 'shell', env: {"hostname" => $DOCKER_VM_NAME}, inline: "echo $hostname > /etc/hostname && hostname -F /etc/hostname", privileged: true
+    # change the network card hardware for better performance
+    vb.customize ["modifyvm", :id, "--nictype1", "virtio" ]
+    vb.customize ["modifyvm", :id, "--nictype2", "virtio" ]
+
+    # suggested fix for slow network performance
+    # see https://github.com/mitchellh/vagrant/issues/1807
+    vb.customize ["modifyvm", :id, "--natdnshostresolver1", "on"]
+    vb.customize ["modifyvm", :id, "--natdnsproxy1", "on"]
+  end
+
+  if ARGV.include?("up")
+    puts '------------------------------------------------------'
+    puts "         memory:  #{memory}"
+    puts "           CPUs:  #{cpus}"
+    puts "   box/hostname:  #{name}"
+    puts "   port forward:  #{portString}"
+    puts " shared folders:  #{mounts}"
+    puts '------------------------------------------------------'
+    puts '--- Shared folders are mounted under /mnt/host -------'
+    puts '------------------------------------------------------'
+  end
+
+  if ARGV.include?("destroy")
+    puts '-- DESTROY -------------------------------------------'
+    puts "   box/hostname:  #{name}"
+    puts '------------------------------------------------------'
+  end
+
+  config.vm.provision 'shell', inline: "echo #{name} > /etc/hostname && hostname -F /etc/hostname", privileged: true
   config.vm.provision 'shell', path: 'vagrant/setup.sh', privileged: true
+  if ENV['VM_PROVISIONSCRIPTS']
+    provisionScriptList = ENV['VM_PROVISIONSCRIPTS']
+    provisionScriptList.split(',').each do |provisionScript|
+      config.vm.provision 'shell', path: provisionScript, privileged: false
+    end
+  end
 end
