@@ -25,11 +25,6 @@ Vagrant.configure(2) do |config|
   config.vm.network 'forwarded_port', guest: 84, host: 8984
   config.vm.network 'forwarded_port', guest: 85, host: 8985
 
-  config.trigger.before :up do |trigger|
-    trigger.info = "Installing prerequisites"
-    trigger.run = {path: "vagrant/install_prerequisites.bat"}
-  end
-
   if ENV['DOCKER_VM_PORTS']
     ports = ENV['DOCKER_VM_PORTS']
     ports.split(",").each do |port|
