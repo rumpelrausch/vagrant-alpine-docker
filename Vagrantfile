@@ -93,7 +93,7 @@ Vagrant.configure(2) do |config|
   end
 
   config.vm.provision 'shell', inline: "echo #{name} > /etc/hostname && hostname -F /etc/hostname", privileged: true
-#  config.vm.provision 'shell', path: 'vagrant/setup.sh', privileged: true
+  config.vm.provision 'shell', path: 'vagrant/setup.sh', privileged: true
   if ENV['VM_PROVISIONSCRIPTS']
     provisionScriptList = ENV['VM_PROVISIONSCRIPTS']
     provisionScriptList.split(',').each do |provisionScript|
