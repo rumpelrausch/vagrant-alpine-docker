@@ -25,7 +25,7 @@ Vagrant.configure(2) do |config|
   memory = ENV['VM_MEMORY'] || 1024
   name = ENV['VM_NAME'] || 'vagrant_alpine'
   cpus = ENV['VM_CPUS'] || 2
-  mountdir = ENV['VM_GUEST_MOUNTDIR'] || '/mnt'
+  mountdir = ENV['VM_GUEST_MOUNTDIR'] || '/home/vagrant'
 
   config.vm.hostname = name
   config.vm.box = 'generic/alpine312'
