@@ -2,7 +2,7 @@
 
 cat <<EOF
 =============
-Settin up vagrant user environment
+Setting up vagrant user environment
 =============
 EOF
 
