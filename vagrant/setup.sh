@@ -14,8 +14,6 @@ then # you are root, set red colour prompt
 else # normal
   PS1="[\t \\u@\\h:\\w] $ "
 fi
-
-alias ll='ls -l'
 EOF
 
 cat << EOF > /home/vagrant/.profile
@@ -26,9 +24,13 @@ then # you are root, set red colour prompt
 else # normal
   PS1="[\t \\u@\\h:\\w] $ "
 fi
-
-alias ll='ls -l'
 EOF
+
+cat << EOF > /usr/bin/l
+#!/bin/bash
+ls -aCF  --color=auto $@
+EOF
+chmod a+rx /usr/bin/l
 
 echo "vagrant ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
 echo "Defaults:vagrant !requiretty" >> /etc/sudoers

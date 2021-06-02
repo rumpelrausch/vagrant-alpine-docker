@@ -2,38 +2,54 @@
 #############################################
 #############################################
 
+required_plugins = %w( vagrant-env vagrant-alpine vagrant-vbguest )
+didInstall = false
+required_plugins.each do |plugin|
+  next if Vagrant.has_plugin? plugin
+  didInstall = true
+  system "vagrant plugin install #{plugin}" unless Vagrant.has_plugin? plugin
+end
+
+if didInstall
+  puts('Plugins are installed.')
+  abort('Please run vagrant again.')
+end
+
 # All Vagrant configuration is done below. The '2' in Vagrant.configure
 # configures the configuration version (we support older styles for
 # backwards compatibility). Please don't change it unless you know what
 # you're doing.
 Vagrant.configure(2) do |config|
   config.env.enable
+
+  memory = ENV['VM_MEMORY'] || 1024
+  name = ENV['VM_NAME'] || 'vagrant_alpine'
+  cpus = ENV['VM_CPUS'] || 2
+  mountdir = ENV['VM_GUEST_MOUNTDIR'] || '/mnt'
+
+  config.vm.hostname = name
   config.vbguest.auto_update = false
   config.vm.box = 'generic/alpine312'
+  config.ssh.insert_key = false
 
   if ENV['VM_PORTS']
     ports = ENV['VM_PORTS']
     ports.split(",").each do |portConfig|
       portConfig = portConfig.split(':')
-      config.vm.network 'forwarded_port', guest: portConfig.first, host: portConfig.last
+      config.vm.network 'forwarded_port', guest: portConfig.last, host: portConfig.first
     end
   end
 
   if ENV['VM_MOUNTS']
     mounts = ENV['VM_MOUNTS']
     mounts.split(",").each do |mount|
-      config.vm.synced_folder mount, '/mnt/host/' + File.basename(mount), nfs:true
+      config.vm.synced_folder mount, mountdir + File.basename(mount), nfs:true
     end
   end
 
-  portString = +ports
+  portString = ports.dup
   portString.gsub!(/,/, "  ")
-  portString.gsub!(/:/, "<-")
-
-  memory = ENV['VM_MEMORY'] || 1024
-  name = ENV['VM_NAME'] || 'vagrant_alpine'
-  cpus = ENV['VM_CPUS'] || 2
-
+  portString.gsub!(/:/, "->")
 
   config.vm.provider 'virtualbox' do |vb|
     # Display the VirtualBox GUI when booting the machine
@@ -54,15 +70,20 @@ Vagrant.configure(2) do |config|
   end
 
   if ARGV.include?("up")
+    puts ''
     puts '------------------------------------------------------'
-    puts "         memory:  #{memory}"
+    puts "          image:  #{config.vm.box}"
+    puts "         memory:  #{memory} MB"
     puts "           CPUs:  #{cpus}"
     puts "   box/hostname:  #{name}"
     puts "   port forward:  #{portString}"
     puts " shared folders:  #{mounts}"
     puts '------------------------------------------------------'
-    puts '--- Shared folders are mounted under /mnt/host -------'
+    puts "--- Shared folders are mounted under #{mountdir}"
     puts '------------------------------------------------------'
+    puts ''
+    print 'Hit [ENTER] to continue or CTRL-C to abort => '
+    STDIN.gets
   end
 
   if ARGV.include?("destroy")
@@ -72,7 +93,7 @@ Vagrant.configure(2) do |config|
   end
 
   config.vm.provision 'shell', inline: "echo #{name} > /etc/hostname && hostname -F /etc/hostname", privileged: true
-  config.vm.provision 'shell', path: 'vagrant/setup.sh', privileged: true
+#  config.vm.provision 'shell', path: 'vagrant/setup.sh', privileged: true
   if ENV['VM_PROVISIONSCRIPTS']
     provisionScriptList = ENV['VM_PROVISIONSCRIPTS']
     provisionScriptList.split(',').each do |provisionScript|
