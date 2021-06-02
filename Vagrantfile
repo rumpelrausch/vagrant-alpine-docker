@@ -42,7 +42,7 @@ Vagrant.configure(2) do |config|
   if ENV['VM_MOUNTS']
     mounts = ENV['VM_MOUNTS']
     mounts.split(",").each do |mount|
-      config.vm.synced_folder mount, mountdir + File.basename(mount), nfs:true
+      config.vm.synced_folder mount, mountdir + '/' + File.basename(mount), nfs:true
     end
   end
 
