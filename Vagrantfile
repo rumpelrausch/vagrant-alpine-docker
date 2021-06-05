@@ -2,7 +2,7 @@
 #############################################
 #############################################
 
-required_plugins = %w( vagrant-env vagrant-alpine )
+required_plugins = %w( vagrant-env )
 didInstall = false
 required_plugins.each do |plugin|
   next if Vagrant.has_plugin? plugin
@@ -27,12 +27,12 @@ Vagrant.configure(2) do |config|
   cpus = ENV['VM_CPUS'] || 2
   mountdir = ENV['VM_GUEST_MOUNTDIR'] || '/home/vagrant'
 
-  config.vm.hostname = name
+  config.vm.define name
   config.vm.box = 'generic/alpine312'
   config.ssh.insert_key = false
 
   if ENV['VM_PORTS']
-    ports = ENV['VM_PORTS']
+    ports = ENV['VM_PORTS'] || ''
     ports.split(",").each do |portConfig|
       portConfig = portConfig.split(':')
       config.vm.network 'forwarded_port', guest: portConfig.last, host: portConfig.first
@@ -42,7 +42,7 @@ Vagrant.configure(2) do |config|
   if ENV['VM_MOUNTS']
     mounts = ENV['VM_MOUNTS']
     mounts.split(",").each do |mount|
-      config.vm.synced_folder mount, mountdir + '/' + File.basename(mount), nfs:true
+      config.vm.synced_folder mount, mountdir + '/' + File.basename(mount), nfs:false
     end
   end
 
@@ -50,22 +50,40 @@ Vagrant.configure(2) do |config|
   portString.gsub!(/,/, "  ")
   portString.gsub!(/:/, "->")
 
-  config.vm.provider 'virtualbox' do |vb|
-    # Display the VirtualBox GUI when booting the machine
-    vb.gui = false
+  if ENV['VM_PROVIDER'] == "virtualbox"
+    # This does currently not work with hyperv
+    config.vm.hostname = name
+    config.vm.provider 'virtualbox' do |vb|
+      # Display the VirtualBox GUI when booting the machine
+      vb.gui = false
 
-    vb.memory = memory
-    vb.name = name
-    vb.cpus = cpus
+      vb.memory = memory
+      vb.name = name
+      vb.cpus = cpus
 
-    # change the network card hardware for better performance
-    vb.customize ["modifyvm", :id, "--nictype1", "virtio" ]
-    vb.customize ["modifyvm", :id, "--nictype2", "virtio" ]
+      # change the network card hardware for better performance
+      vb.customize ["modifyvm", :id, "--nictype1", "virtio" ]
+      vb.customize ["modifyvm", :id, "--nictype2", "virtio" ]
 
-    # suggested fix for slow network performance
-    # see https://github.com/mitchellh/vagrant/issues/1807
-    vb.customize ["modifyvm", :id, "--natdnshostresolver1", "on"]
-    vb.customize ["modifyvm", :id, "--natdnsproxy1", "on"]
+      # suggested fix for slow network performance
+      # see https://github.com/mitchellh/vagrant/issues/1807
+      vb.customize ["modifyvm", :id, "--natdnshostresolver1", "on"]
+      vb.customize ["modifyvm", :id, "--natdnsproxy1", "on"]
+    end
+  end
+
+  if ENV['VM_PROVIDER'] == "hyperv"
+    config.vm.provider 'hyperv' do |hv|
+
+      # vb.maxmemory = memory
+      hv.memory = memory
+      hv.vmname = name
+      hv.cpus = cpus
+
+      hv.vm_integration_services = {
+        guest_service_interface: true
+      }
+    end
   end
 
   if ARGV.include?("up")
@@ -92,11 +110,11 @@ Vagrant.configure(2) do |config|
   end
 
   config.vm.provision 'shell', inline: "echo #{name} > /etc/hostname && hostname -F /etc/hostname", privileged: true
-  config.vm.provision 'shell', path: 'vagrant/setup.sh', privileged: true
+  #config.vm.provision 'shell', path: 'vagrant/setup.sh', privileged: true
   if ENV['VM_PROVISIONSCRIPTS']
     provisionScriptList = ENV['VM_PROVISIONSCRIPTS']
     provisionScriptList.split(',').each do |provisionScript|
-      config.vm.provision 'shell', path: provisionScript, privileged: false
+      config.vm.provision 'shell', path: provisionScript, privileged: true
     end
   end
 end
